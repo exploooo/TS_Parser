@@ -39,7 +39,7 @@ int32_t xTS_PacketHeader::Parse(const uint8_t* Input)
     ReadInputBinary8(*(Input+3)); printf("\t");
 */
 
-    uint32_t header = *Input | *(Input+1)<<8 | *(Input+2)<<16 | *(Input+3)<<24;
+    uint32_t header = Input[0] | Input[1]<<8 | Input[2]<<16 | Input[3]<<24;
     header = xSwapBytes32(header);
 
     if(!header){
@@ -66,7 +66,7 @@ int32_t xTS_PacketHeader::Parse(const uint8_t* Input)
 /// @brief Print all TS packet header fields
 void xTS_PacketHeader::Print() const
 {
-   printf(/*KWHT*/ "TS: SB: %u E: %u S: %u T: %u PID: %4u TSC: %u AFC: %u CC: %2u ", getSyncByte(), getTransportErrorIndicator(), getPayloadUntilStartIndicator(), getTransportPriority(), getPacketIdentifier(), getTransportScramblingControl(), getAdaptationFieldControl(), getContinuityCounter());
+   printf(KWHT "TS: SB: %u E: %u S: %u T: %u PID: %4u TSC: %u AFC: %u CC: %2u ", getSyncByte(), getTransportErrorIndicator(), getPayloadUntilStartIndicator(), getTransportPriority(), getPacketIdentifier(), getTransportScramblingControl(), getAdaptationFieldControl(), getContinuityCounter());
 }
 
 void xTS_PacketHeader::ReadInputBinary8(uint8_t byte){
@@ -160,16 +160,16 @@ int32_t xTS_AdaptationField::Parse(const uint8_t* PacketBuffer, uint8_t Adaptati
         m_EX=((*PacketBuffer)&0b00000001);
         if(m_PR){
             PacketBuffer+=1;
-            m_PCRB = (*PacketBuffer<<25) | (*(PacketBuffer+1)<<17) | (*(PacketBuffer+2)<<9) | (*(PacketBuffer+3)<<1) | (*(PacketBuffer+5)>>7);
-            m_PCRE = ((*(PacketBuffer+5)&0b00000001)<<8) | (*(PacketBuffer+6));
+            m_PCRB = PacketBuffer[0]<<25 | PacketBuffer[1]<<17 | PacketBuffer[2]<<9 | PacketBuffer[3]<<1 | PacketBuffer[5]>>7;
+            m_PCRE = (PacketBuffer[5]&0b00000001)<<8 | PacketBuffer[6];
             m_PCR=(m_PCRB*300) + m_PCRE;
             PacketBuffer+=5;
             StuffingBytesCount-=6;
         }
         if(m_OR){
             PacketBuffer+=1;
-            m_OPCRB = (*PacketBuffer<<25) | (*(PacketBuffer+1)<<17) | (*(PacketBuffer+2)<<9) | (*(PacketBuffer+3)<<1) | (*(PacketBuffer+5)>>7);
-            m_OPCRE = ((*(PacketBuffer+5)&0b00000001)<<8) | (*(PacketBuffer+6));
+            m_OPCRB = PacketBuffer[0]<<25 | PacketBuffer[1]<<17 | PacketBuffer[2]<<9 | PacketBuffer[3]<<1 | PacketBuffer[5]>>7;
+            m_OPCRE = (PacketBuffer[5]&0b00000001)<<8 | PacketBuffer[6];
             m_OPCR=(m_OPCRB*300) + m_OPCRE;
             PacketBuffer+=5;
             StuffingBytesCount-=6;
@@ -195,7 +195,7 @@ int32_t xTS_AdaptationField::Parse(const uint8_t* PacketBuffer, uint8_t Adaptati
 void xTS_AdaptationField::Print() const
 {
 //print print print
-    printf(/*KYEL*/ "\n\t   AF: L: %3d DC: %d RA: %d SP: %d PR: %d OR: %d SF: %d TP: %d EX: %d", m_AFL, m_DC, m_RA, m_SP, m_PR, m_OR, m_SF, m_TP, m_EX);
+    printf(KYEL "\n\t   AF: L: %3d DC: %d RA: %d SP: %d PR: %d OR: %d SF: %d TP: %d EX: %d", m_AFL, m_DC, m_RA, m_SP, m_PR, m_OR, m_SF, m_TP, m_EX);
     if(m_PR == true){printf(" PCR: %d (Time: %.5f sec)", m_PCR, ((float)m_PCR/27000000));}
     if(m_OR == true){printf(" OPCR: %d (Time: %.5f sec)", m_OPCR, ((float)m_OPCR/27000000));}
     printf(" Stuffing Bytes: %3d ", StuffingBytesCount);
@@ -233,20 +233,20 @@ void xPES_PacketHeader::Reset(){
 
 int32_t xPES_PacketHeader::Parse(const uint8_t* Input){
 
-    m_PacketStartCodePrefix = *Input<<16 | *(Input+1)<<8 | *(Input+2);
-    m_StreamId = *(Input+3);
-    m_PacketLength = *(Input+4)<<8 | *(Input+5);
+    m_PacketStartCodePrefix = Input[0]<<16 | Input[1]<<8 | Input[2];
+    m_StreamId = Input[3];
+    m_PacketLength = Input[4]<<8 | Input[5];
 
     if(m_StreamId!=eStreamId::eStreamId_DSMCC_stream && m_StreamId!=eStreamId::eStreamId_ECM && m_StreamId!=eStreamId::eStreamId_EMM && m_StreamId!=eStreamId::eStreamId_ITUT_H222_1_type_E && m_StreamId!=eStreamId::eStreamId_padding_stream && m_StreamId != eStreamId::eStreamId_private_stream_2 && m_StreamId != eStreamId::eStreamId_program_stream_directory && m_StreamId != eStreamId::eStreamId_program_stream_map){
         m_HeaderLength+=3;
-        m_PTS_DTS_Flags = (*(Input+7)&0b11000000)>>6;
-        m_ExtendedHeaderDataLength = *(Input+8);
+        m_PTS_DTS_Flags = (Input[7]&0b11000000)>>6;
+        m_ExtendedHeaderDataLength = Input[8];
         if(m_PTS_DTS_Flags == 2){
-            m_PTS = (*(Input+9)&0b00001110)<<28 | *(Input+10)<<21 | (*(Input+11)&0b11111110)<<14 | *(Input+12)<<7  | (*(Input+13)&0b11111110)>>1;
+            m_PTS = (Input[9]&0b00001110)<<28 | Input[10]<<21 | (Input[11]&0b11111110)<<14 | Input[12]<<7  | (Input[13]&0b11111110)>>1;
             //printf("\n\n"); ReadInputBinary8(Input[9]); ReadInputBinary8(Input[10]); ReadInputBinary8(Input[11]); ReadInputBinary8(Input[12]); ReadInputBinary8(Input[13]); printf("\n\n");
         } else if(m_PTS_DTS_Flags == 3){
-            m_PTS = (*(Input+9)&0b00001110)<<28 | *(Input+10)<<21 | (*(Input+11)&0b11111110)<<14 | *(Input+12)<<7  | (*(Input+13)&0b11111110)>>1;
-            m_DTS = (*(Input+14)&0b00001110)<<28 | *(Input+15)<<21 | (*(Input+16)&0b11111110)<<14 | *(Input+17)<<7  | (*(Input+18)&0b11111110)>>1;
+            m_PTS = (Input[9]&0b00001110)<<28 | Input[10]<<21 | (Input[11]&0b11111110)<<14 | Input[12]<<7  | (Input[13]&0b11111110)>>1;
+            m_DTS = (Input[14]&0b00001110)<<28 | Input[15]<<21 | (Input[16]&0b11111110)<<14 | Input[17]<<7  | (Input[18]&0b11111110)>>1;
         }
     } else{
         m_ExtendedHeaderDataLength = 0;
@@ -259,7 +259,7 @@ int32_t xPES_PacketHeader::Parse(const uint8_t* Input){
 
 void xPES_PacketHeader::Print() const
 {
-    printf(/*KBLU*/ "\n\t   PESH: PSCP: %d, SID: %d, PL: %d, EPL: %d", m_PacketStartCodePrefix, m_StreamId, m_PacketLength, m_ExtendedHeaderDataLength);
+    printf(KBLU "\n\t   PESH: PSCP: %d, SID: %d, PL: %d, EPL: %d", m_PacketStartCodePrefix, m_StreamId, m_PacketLength, m_ExtendedHeaderDataLength);
     if(m_PTS_DTS_Flags==2){ printf(", PTS: %d(Time: %.5f sec.)", m_PTS, ((float)m_PTS/90000)); }
     if(m_PTS_DTS_Flags==3){ printf(", PTS: %d(Time: %.5f sec.), DTS: %d(Time: %.5f sec.)", m_PTS, ((float)m_PTS/90000), m_DTS, ((float)m_DTS/90000) ); }
 
@@ -286,36 +286,49 @@ void xPES_PacketHeader::ReadInputBinary8(uint8_t byte){
 
 void xPES_Assembler::Init(int32_t PID){
     m_PID = PID;
+    if(m_PID == 136){
+        m_streamDataFile = fopen("PID136.mp2", "wb");
+    } else if(m_PID == 174){
+        m_streamDataFile = fopen("PID174.264", "wb");
+    }
 }
 
 xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStreamPacket, const xTS_PacketHeader* PacketHeader, const xTS_AdaptationField* AdaptationField){
 
-    if((*PacketHeader).getPacketIdentifier() != m_PID){
-        m_LastContinuityCounter=(*PacketHeader).getContinuityCounter();
+    if(PacketHeader->getPacketIdentifier() != m_PID){
+        m_LastContinuityCounter=PacketHeader->getContinuityCounter();
         return xPES_Assembler::eResult::UnexpectedPID;
-    } else if ((m_LastContinuityCounter==15 && (*PacketHeader).getContinuityCounter()!=0) || (m_LastContinuityCounter!=15 && ((*PacketHeader).getContinuityCounter() != (m_LastContinuityCounter+1))) && (*PacketHeader).getPayloadUntilStartIndicator() != 1){
-        m_LastContinuityCounter=(*PacketHeader).getContinuityCounter();
+    } else if ((m_LastContinuityCounter==15 && PacketHeader->getContinuityCounter()!=0) || (m_LastContinuityCounter!=15 && (PacketHeader->getContinuityCounter() != (m_LastContinuityCounter+1))) && PacketHeader->getPayloadUntilStartIndicator() != 1){
+        m_LastContinuityCounter=PacketHeader->getContinuityCounter();
         return xPES_Assembler::eResult::StreamPacketLost;
     } else{
-        if((*PacketHeader).hasAdaptationField()){
-            TransportStreamPacket+=(*AdaptationField).getAdaptationFieldLength()+5;
+        if(PacketHeader->hasAdaptationField()){
+            TransportStreamPacket+=AdaptationField->getAdaptationFieldLength()+5;
         } else {
             TransportStreamPacket+=4;
         }
 
-        m_LastContinuityCounter=(*PacketHeader).getContinuityCounter();
+        m_LastContinuityCounter=PacketHeader->getContinuityCounter();
         uint8_t jmp;
 
-        if((*PacketHeader).getPayloadUntilStartIndicator() == 1){                                                               // Start
+        if(PacketHeader->getPayloadUntilStartIndicator() == 1){                                                               // Start
             m_Started=true;
             m_PESH.Reset();
             m_PESH.Parse(TransportStreamPacket);
-            m_DataOffset=xTS::TS_PacketLength-(*AdaptationField).getAdaptationFieldLength()-5;
+            m_DataOffset=xTS::TS_PacketLength-4;
+            if(PacketHeader->hasAdaptationField()){
+                m_DataOffset-=(AdaptationField->getAdaptationFieldLength()+1);
+            }
             m_BufferSize=m_DataOffset-m_PESH.getHeaderLength();
             jmp=m_PESH.getHeaderLength();
             //printf("JMP: %d",jmp);
             m_BufferPos=0;
-            m_Buffer=new uint8_t[m_PESH.getPacketLength()-3-m_PESH.getExtendedHeaderDataLength()];
+            if(m_PESH.getPacketLength()){
+                m_Buffer=new uint8_t[m_PESH.getPacketLength()-3-m_PESH.getExtendedHeaderDataLength()];
+            } else{
+                printf("New Size:%d",m_BufferSize);
+                m_Buffer=new uint8_t[m_BufferSize];
+            }
             while(m_BufferPos < m_BufferSize){
                 m_Buffer[m_BufferPos]=TransportStreamPacket[m_BufferPos+jmp];
                 //printf("m_BufferPos: %d\n", m_BufferPos);
@@ -323,10 +336,25 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
             }
             //printf("Buffer Pos: %d",m_BufferPos);
             return xPES_Assembler::eResult::AssemblingStarted;
-        } else if((*PacketHeader).getPayloadUntilStartIndicator() == 0 && (*PacketHeader).getAdaptationFieldControl() == 3){    // Finish
+        } else if(PacketHeader->getPayloadUntilStartIndicator() == 0 && PacketHeader->getAdaptationFieldControl() == 3){    // Finish
             m_Started=false;
-            m_DataOffset+=xTS::TS_PacketLength-(*AdaptationField).getAdaptationFieldLength()-5;
-            m_BufferSize=183-(*AdaptationField).getAdaptationFieldLength();
+            m_BufferSize=183-AdaptationField->getAdaptationFieldLength();
+            m_DataOffset+=m_BufferSize;
+            if(!m_PESH.getPacketLength()){
+                uint32_t newSize = m_DataOffset-m_PESH.getHeaderLength();
+                
+                uint8_t* m_SwapBuffer = new uint8_t[m_BufferPos];
+                printf("Old Size: %d, New Size: %d ", m_BufferPos, newSize);
+                for(int i=0; i<m_BufferPos; i++){
+                    m_SwapBuffer[i]=m_Buffer[i];
+                }
+                delete m_Buffer; m_Buffer = new uint8_t[newSize];
+                for(int i=0; i<m_BufferPos; i++){
+                    m_Buffer[i]=m_SwapBuffer[i];
+                }
+                
+                delete m_SwapBuffer;
+            }
             jmp=188-m_BufferSize;
             //std::cout << "Data Offset Start: " << m_DataOffset - m_BufferSize<< std::endl;
             //std::cout << "Data Offset End: " << m_DataOffset - m_PESH.getHeaderLength() << std::endl;
@@ -348,12 +376,26 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
             delete m_Buffer;
             return xPES_Assembler::eResult::AssemblingFinished;
         } else{                                                                                                                 // Continue
-            if(!(*PacketHeader).hasAdaptationField()){
-                m_DataOffset+=184;
+            if(!PacketHeader->hasAdaptationField()){
                 m_BufferSize=184;
             } else{
-                m_DataOffset+=183-(*AdaptationField).getAdaptationFieldLength();
-                m_BufferSize=183-(*AdaptationField).getAdaptationFieldLength();
+                m_BufferSize=183-AdaptationField->getAdaptationFieldLength();
+            }
+            m_DataOffset+=m_BufferSize;
+            if(!m_PESH.getPacketLength()){
+                uint32_t newSize = m_BufferPos+m_BufferSize;
+                printf("Old Size: %d, New Size: %d ", m_BufferPos, newSize);
+                uint8_t* m_SwapBuffer = new uint8_t[m_BufferPos];
+                
+                for(int i=0; i<m_BufferPos; i++){
+                    m_SwapBuffer[i]=m_Buffer[i];
+                }
+                delete m_Buffer; m_Buffer = new uint8_t[m_BufferPos+m_BufferSize];
+                for(int i=0; i<m_BufferPos; i++){
+                    m_Buffer[i]=m_SwapBuffer[i];
+                }
+                
+                delete m_SwapBuffer;
             }
             jmp=m_PESH.getHeaderLength();
             printf("POS: %d", m_BufferPos);

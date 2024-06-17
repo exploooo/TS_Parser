@@ -65,7 +65,18 @@ int main(int argc, char *argv[ ], char *envp[ ])
       switch(Result){
         case xPES_Assembler::eResult::StreamPacketLost : printf("Packet Lost."); break;
         case xPES_Assembler::eResult::AssemblingStarted : printf(KWHT "Start "); PES_Assembler_Video.PrintPESH(); break;
-        case xPES_Assembler::eResult::AssemblingFinished : printf(KWHT "Finish "); printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength())); break;
+        case xPES_Assembler::eResult::AssemblingFinished :
+          printf(KWHT "Finish "); 
+          printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength()));
+          break;
+        case xPES_Assembler::eResult::AssemblingFinishedToStart: 
+          printf(KWHT "Finish ");
+          printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength()));
+          Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+          printf("Result: %d", Result);
+          printf(KWHT "\nStart ");
+          PES_Assembler_Video.PrintPESH();
+          break;
         case xPES_Assembler::eResult::AssemblingContinue : printf("Continue"); break;
         default : break;
       }
@@ -73,9 +84,9 @@ int main(int argc, char *argv[ ], char *envp[ ])
       printf("\n");
     }
 
-    // if(TS_PacketId == 34){
-    //     break;
-    // }
+  // if(TS_PacketId == 18568){
+  //   break;
+  // }
 
     TS_PacketId++;
   }

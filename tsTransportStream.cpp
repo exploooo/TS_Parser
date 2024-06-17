@@ -286,6 +286,7 @@ void xPES_PacketHeader::ReadInputBinary8(uint8_t byte){
 
 void xPES_Assembler::Init(int32_t PID){
     m_PID = PID;
+    m_Started = false;
     if(m_PID == 136){
         m_streamDataFile = fopen("PID136.mp2", "wb");
     } else if(m_PID == 174){
@@ -302,6 +303,14 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
         m_LastContinuityCounter=PacketHeader->getContinuityCounter();
         return xPES_Assembler::eResult::StreamPacketLost;
     } else{
+
+        if(m_Started && PacketHeader->getPayloadUntilStartIndicator()){    // Finish to Start
+            m_Started = false;
+            fwrite(m_Buffer, sizeof(char), m_DataOffset-m_PESH.getHeaderLength(), m_streamDataFile);
+            delete m_Buffer;
+            return xPES_Assembler::eResult::AssemblingFinishedToStart;
+        }
+
         if(PacketHeader->hasAdaptationField()){
             TransportStreamPacket+=AdaptationField->getAdaptationFieldLength()+5;
         } else {
@@ -311,7 +320,8 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
         m_LastContinuityCounter=PacketHeader->getContinuityCounter();
         uint8_t jmp;
 
-        if(PacketHeader->getPayloadUntilStartIndicator() == 1){                                                               // Start
+        if(!m_Started && PacketHeader->getPayloadUntilStartIndicator()){   // Kickstart
+            printf(KWHT "XD");
             m_Started=true;
             m_PESH.Reset();
             m_PESH.Parse(TransportStreamPacket);
@@ -321,7 +331,6 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
             }
             m_BufferSize=m_DataOffset-m_PESH.getHeaderLength();
             jmp=m_PESH.getHeaderLength();
-            //printf("JMP: %d",jmp);
             m_BufferPos=0;
             if(m_PESH.getPacketLength()){
                 m_Buffer=new uint8_t[m_PESH.getPacketLength()-3-m_PESH.getExtendedHeaderDataLength()];
@@ -331,24 +340,22 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
             }
             while(m_BufferPos < m_BufferSize){
                 m_Buffer[m_BufferPos]=TransportStreamPacket[m_BufferPos+jmp];
-                //printf("m_BufferPos: %d\n", m_BufferPos);
                 m_BufferPos++;
             }
-            //printf("Buffer Pos: %d",m_BufferPos);
             return xPES_Assembler::eResult::AssemblingStarted;
-        } else if(PacketHeader->getPayloadUntilStartIndicator() == 0 && PacketHeader->getAdaptationFieldControl() == 3){    // Finish
-            m_Started=false;
+        } else if(!PacketHeader->getPayloadUntilStartIndicator() && PacketHeader->getAdaptationFieldControl() == 3){            // Finish
+            m_Started = false;
             m_BufferSize=183-AdaptationField->getAdaptationFieldLength();
             m_DataOffset+=m_BufferSize;
             if(!m_PESH.getPacketLength()){
-                uint32_t newSize = m_DataOffset-m_PESH.getHeaderLength();
-                
-                uint8_t* m_SwapBuffer = new uint8_t[m_BufferPos];
+                uint32_t newSize = m_BufferPos+m_BufferSize;
                 printf("Old Size: %d, New Size: %d ", m_BufferPos, newSize);
+                uint8_t* m_SwapBuffer = new uint8_t[m_BufferPos];
+                
                 for(int i=0; i<m_BufferPos; i++){
                     m_SwapBuffer[i]=m_Buffer[i];
                 }
-                delete m_Buffer; m_Buffer = new uint8_t[newSize];
+                delete m_Buffer; m_Buffer = new uint8_t[m_BufferPos+m_BufferSize];
                 for(int i=0; i<m_BufferPos; i++){
                     m_Buffer[i]=m_SwapBuffer[i];
                 }
@@ -356,22 +363,11 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
                 delete m_SwapBuffer;
             }
             jmp=188-m_BufferSize;
-            //std::cout << "Data Offset Start: " << m_DataOffset - m_BufferSize<< std::endl;
-            //std::cout << "Data Offset End: " << m_DataOffset - m_PESH.getHeaderLength() << std::endl;
-            int32_t j=0;
-            //printf("Buffer Pos: %d",m_BufferPos);
+            uint32_t j=0;
             while(m_BufferPos<m_DataOffset-m_PESH.getHeaderLength()){
                 m_Buffer[m_BufferPos]=TransportStreamPacket[j];
-                //printf("m_BufferPos: %d\n", m_BufferPos);
                 j++; m_BufferPos++;
             }
-            /*printf("\n");
-            for(int i=0; i<m_DataOffset-m_PESH.getHeaderLength();i++){
-                //printf("Line %i, Value: ", i);
-                //ReadInputBinary8(m_Buffer[i]);
-                //printf("\n");
-            }*/
-            //printf("Data Offset Final: %d", m_DataOffset);
             fwrite(m_Buffer, sizeof(char), m_DataOffset-m_PESH.getHeaderLength(), m_streamDataFile);
             delete m_Buffer;
             return xPES_Assembler::eResult::AssemblingFinished;
@@ -398,14 +394,9 @@ xPES_Assembler::eResult xPES_Assembler::AbsorbPacket(const uint8_t* TransportStr
                 delete m_SwapBuffer;
             }
             jmp=m_PESH.getHeaderLength();
-            printf("POS: %d", m_BufferPos);
-            //std::cout << "Data Offset Start: " << m_DataOffset - m_BufferSize<< std::endl;
-            //std::cout << "Data Offset End: " << m_DataOffset << std::endl;
             int32_t j=0;
-            //printf("Buffer Pos: %d",m_BufferPos);
             while(m_BufferPos<m_DataOffset-jmp){
                 m_Buffer[m_BufferPos]=TransportStreamPacket[j];
-                //printf("m_BufferPos: %d\n", m_BufferPos);
                 j++; m_BufferPos++;
             }
             return xPES_Assembler::eResult::AssemblingContinue;

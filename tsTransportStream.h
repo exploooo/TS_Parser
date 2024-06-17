@@ -216,6 +216,7 @@ public:
     AssemblingStarted ,
     AssemblingContinue,
     AssemblingFinished,
+    AssemblingFinishedToStart
   };
 protected:
   //setup
@@ -241,6 +242,7 @@ public:
   int32_t getNumPacketBytes() const { return m_DataOffset; }
   int32_t getHeaderLength() const { return m_PESH.getHeaderLength(); }
   void ReadInputBinary8(uint8_t byte);
+  void switchStarted(){ m_Started = !m_Started; }
 
 protected:
   void xBufferReset ();

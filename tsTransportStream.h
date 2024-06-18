@@ -134,7 +134,7 @@ uint8_t m_TPLen;
 uint8_t m_AFELen;
 
 //Stuffing Bytes
-uint32_t StuffingBytesCount;
+uint32_t m_StuffingBytesCount;
 
 public:
 void Reset();
@@ -156,7 +156,7 @@ bool getTransportPrivateDataFlag () const { return m_TP ; }
 bool getadAptationFieldExtensionFlag () const { return m_EX ; }
 
 //derived
-uint32_t getNumStuffingBytes () const { return StuffingBytesCount ; }
+uint32_t getNumStuffingBytes () const { return m_StuffingBytesCount ; }
 };
 
 //=============================================================================================================================================================================

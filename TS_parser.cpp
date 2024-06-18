@@ -6,6 +6,9 @@
 int main(int argc, char *argv[ ], char *envp[ ])
 {
 
+  bool yetAnotherVerboseModeSwitch = true; // Do You Want to show packet messages?
+  uint32_t breakAt = 0; // if You wish You can end at any packet
+
   FILE *exampleFile = fopen("/home/explo/Documents/src/TS_Parser/example_new.ts", "rb");
 
   if ( exampleFile ){
@@ -33,64 +36,111 @@ int main(int argc, char *argv[ ], char *envp[ ])
     TS_PacketHeader.Parse(buffor);
 
     TS_AdaptationField.Reset();
-    if(TS_PacketHeader.getSyncByte() == 'G' && TS_PacketHeader.getPacketIdentifier() == 136){
-      if(TS_PacketHeader.hasAdaptationField()){
-        TS_AdaptationField.Parse(buffor, TS_PacketHeader.getAdaptationFieldControl());
-      }
 
-      printf(KRED "%010d ", TS_PacketId);
-      TS_PacketHeader.Print();
-      if(TS_PacketHeader.hasAdaptationField()){ TS_AdaptationField.Print();}
+    if(TS_PacketHeader.getSyncByte() == 'G' && TS_PacketHeader.getPacketIdentifier() == 136){
+
+      if(TS_PacketHeader.hasAdaptationField()){
+          TS_AdaptationField.Parse(buffor, TS_PacketHeader.getAdaptationFieldControl());
+      }
 
       xPES_Assembler::eResult Result = PES_Assembler_Audio.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
-      switch(Result){
-        case xPES_Assembler::eResult::StreamPacketLost : printf("Packet Lost."); break;
-        case xPES_Assembler::eResult::AssemblingStarted : printf(KWHT "Start "); PES_Assembler_Audio.PrintPESH(); break;
-        case xPES_Assembler::eResult::AssemblingFinished : printf(KWHT "Finish "); printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Audio.getNumPacketBytes(), PES_Assembler_Audio.getHeaderLength(), (PES_Assembler_Audio.getNumPacketBytes()-PES_Assembler_Audio.getHeaderLength())); break;
-        case xPES_Assembler::eResult::AssemblingContinue : printf("Continue"); break;
-        default : break;
+
+      if(yetAnotherVerboseModeSwitch){
+
+        printf(KMAG "%010d ", TS_PacketId);
+        TS_PacketHeader.Print();
+        if(TS_PacketHeader.hasAdaptationField()){ TS_AdaptationField.Print();}
+
+        switch(Result){
+          case xPES_Assembler::eResult::StreamPacketLost : printf("Packet Lost."); break;
+          case xPES_Assembler::eResult::AssemblingStarted : printf(KCYN "Start "); PES_Assembler_Audio.PrintPESH(); break;
+          case xPES_Assembler::eResult::AssemblingFinished :
+            printf(KCYN "Finish "); 
+            printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Audio.getNumPacketBytes(), PES_Assembler_Audio.getHeaderLength(), (PES_Assembler_Audio.getNumPacketBytes()-PES_Assembler_Audio.getHeaderLength()));
+            break;
+          case xPES_Assembler::eResult::AssemblingFinishedToStart: 
+            printf(KCYN "Finish ");
+            printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Audio.getNumPacketBytes(), PES_Assembler_Audio.getHeaderLength(), (PES_Assembler_Audio.getNumPacketBytes()-PES_Assembler_Audio.getHeaderLength()));
+            if(TS_PacketHeader.getPacketIdentifier() == 136){
+              Result = PES_Assembler_Audio.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+            } else if(TS_PacketHeader.getPacketIdentifier() == 174){
+              Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+            }
+            printf(KCYN "\nStart ");
+            PES_Assembler_Video.PrintPESH();
+            break;
+          case xPES_Assembler::eResult::AssemblingContinue : printf(KCYN "Continue"); break;
+          default : break;
+        }
+
+        printf("\n");
       }
 
-      printf("\n");
+      if(!yetAnotherVerboseModeSwitch && Result == xPES_Assembler::eResult::AssemblingFinishedToStart){
+          if(TS_PacketHeader.getPacketIdentifier() == 136){
+            Result = PES_Assembler_Audio.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+          } else if(TS_PacketHeader.getPacketIdentifier() == 174){
+            Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+          }
+      }
+
+
     } else if(TS_PacketHeader.getSyncByte() == 'G' && TS_PacketHeader.getPacketIdentifier() == 174){
-      if(TS_PacketHeader.hasAdaptationField()){
-        TS_AdaptationField.Parse(buffor, TS_PacketHeader.getAdaptationFieldControl());
-      }
+        if(TS_PacketHeader.hasAdaptationField()){
+          TS_AdaptationField.Parse(buffor, TS_PacketHeader.getAdaptationFieldControl());
+        }
 
-      printf(KRED "%010d ", TS_PacketId);
-      TS_PacketHeader.Print();
-      if(TS_PacketHeader.hasAdaptationField()){ TS_AdaptationField.Print();}
+        xPES_Assembler::eResult Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
 
-      xPES_Assembler::eResult Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
-      switch(Result){
-        case xPES_Assembler::eResult::StreamPacketLost : printf("Packet Lost."); break;
-        case xPES_Assembler::eResult::AssemblingStarted : printf(KWHT "Start "); PES_Assembler_Video.PrintPESH(); break;
-        case xPES_Assembler::eResult::AssemblingFinished :
-          printf(KWHT "Finish "); 
-          printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength()));
-          break;
-        case xPES_Assembler::eResult::AssemblingFinishedToStart: 
-          printf(KWHT "Finish ");
-          printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength()));
-          Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
-          printf("Result: %d", Result);
-          printf(KWHT "\nStart ");
-          PES_Assembler_Video.PrintPESH();
-          break;
-        case xPES_Assembler::eResult::AssemblingContinue : printf("Continue"); break;
-        default : break;
-      }
+        if(yetAnotherVerboseModeSwitch){
 
-      printf("\n");
+          printf(KMAG "%010d ", TS_PacketId);
+          TS_PacketHeader.Print();
+          if(TS_PacketHeader.hasAdaptationField()){ TS_AdaptationField.Print();}
+          
+          switch(Result){
+            case xPES_Assembler::eResult::StreamPacketLost : printf("Packet Lost."); break;
+            case xPES_Assembler::eResult::AssemblingStarted : printf(KCYN "Start "); PES_Assembler_Video.PrintPESH(); break;
+            case xPES_Assembler::eResult::AssemblingFinished :
+              printf(KCYN "Finish "); 
+              printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength()));
+              break;
+            case xPES_Assembler::eResult::AssemblingFinishedToStart: 
+              printf(KCYN"Finish ");
+              printf(KBLU "\n\t   PES: Packet Length: %d, Header Length: %d, Data Length: %d", PES_Assembler_Video.getNumPacketBytes(), PES_Assembler_Video.getHeaderLength(), (PES_Assembler_Video.getNumPacketBytes()-PES_Assembler_Video.getHeaderLength()));
+              if(TS_PacketHeader.getPacketIdentifier() == 136){
+                Result = PES_Assembler_Audio.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+              } else if(TS_PacketHeader.getPacketIdentifier() == 174){
+                Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+              }
+              printf(KCYN"\nStart ");
+              PES_Assembler_Video.PrintPESH();
+              break;
+            case xPES_Assembler::eResult::AssemblingContinue : printf(KCYN "Continue"); break;
+            default : break;
+          }
+
+          printf("\n");
+        }
+
+        if(!yetAnotherVerboseModeSwitch && Result == xPES_Assembler::eResult::AssemblingFinishedToStart){
+          if(TS_PacketHeader.getPacketIdentifier() == 136){
+            Result = PES_Assembler_Audio.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+          } else if(TS_PacketHeader.getPacketIdentifier() == 174){
+            Result = PES_Assembler_Video.AbsorbPacket(buffor, &TS_PacketHeader, &TS_AdaptationField);
+          }
+        }
+
     }
 
-  // if(TS_PacketId == 18568){
-  //   break;
-  // }
+  if(breakAt && TS_PacketId == breakAt){
+    break;
+  }
 
     TS_PacketId++;
   }
 
+  printf("Koniec!\n");
   fclose(exampleFile);
 
   return EXIT_SUCCESS;

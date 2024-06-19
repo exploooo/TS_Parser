@@ -4,6 +4,8 @@
 #include <cfloat>
 #include <climits>
 #include <cstddef>
+#include <string.h>
+#include <mpg123.h>
 
 #define NOT_VALID  -1
 

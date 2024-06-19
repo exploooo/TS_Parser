@@ -6,16 +6,42 @@
 int main(int argc, char *argv[ ], char *envp[ ])
 {
 
-  bool yetAnotherVerboseModeSwitch = true; // Do You Want to show packet messages?
+  /* 
+     Determine which System is used whilst checking
+     Purely for me at the moment, to make testing easier
+     TODO: change to os library to check for uname,
+     and boot optimal GUI system for the OS.
+  */
+  char osType[] = "Linux";
+  char path[128];
+
+  if(!strcmp(osType,"Linux")){
+    strcpy(path,"/home/explo/Documents/src/TS_Parser/example_new.ts");
+  } else if(!strcmp(osType,"Windows")){
+    strcpy(path,"example_new.ts");
+  }
+
+  /* 
+     Switches that makes life easier
+     Those are ment to be set in this section of code
+  */
+
+  bool wavOutputRequired = true; // Is .wav output required? Requires mpeg123 libs
+  bool yetAnotherVerboseModeSwitch = false; // Do You Want to show packet messages?
   uint32_t breakAt = 0; // if You wish You can end at any packet
 
-  FILE *exampleFile = fopen("/home/explo/Documents/src/TS_Parser/example_new.ts", "rb");
+  /*
+    Main Program
+  */
 
-  if ( exampleFile ){
-    printf("Odpalil! \n");
-  } else {
-    printf("Nie odpalil :c \n");
+  FILE *exampleFile = fopen(path, "rb");
+
+  if ( !exampleFile ){
+    printf("Nie odpalil :c\n");
+    return -1;
   }
+
+  printf("Odpalil!\n");
 
   xTS_PacketHeader TS_PacketHeader;
   xTS_AdaptationField TS_AdaptationField;
@@ -142,6 +168,19 @@ int main(int argc, char *argv[ ], char *envp[ ])
 
   printf("Koniec!\n");
   fclose(exampleFile);
+
+  if(wavOutputRequired){
+
+    FILE* mpeg2audioFile = fopen("PID136.mp2", "rb");
+    mpg123_handle* mh;
+    uint8_t* buffer[8];
+
+    while(!feof(mpeg2audioFile)){
+      size_t readed = fread( buffer, sizeof( uint8_t ), 1, mpeg2audioFile ); 
+      
+    }
+    
+  }
 
   return EXIT_SUCCESS;
 }
